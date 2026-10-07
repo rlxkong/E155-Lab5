@@ -4,6 +4,17 @@
 // 10/6/2026
 
 #include "main.h"
+#include "STM32L432KC.h"
+#include <stdio.h>
+
+// global variables
+volatile int direction;
+volatile int pulse;
+volatile float velocity;
+
+// motor digital sensor status for direction sensing
+int pulse_a;
+int pulse_b;
 
 int main(void) {
     // Enable encoders as inputs
@@ -29,27 +40,111 @@ int main(void) {
     // Enable interrupts globally
     __enable_irq();
 
-    // Configure interrupt for falling edge of GPIO pin for button
-    EXTI->IMR1 |= (1 << gpioPinOffset(BUTTON_PIN));   // 1. Configure mask bit
-    EXTI->RTSR1 &= ~(1 << gpioPinOffset(BUTTON_PIN)); // 2. Disable rising edge trigger
-    EXTI->FTSR1 |= (1 << gpioPinOffset(BUTTON_PIN));  // 3. Enable falling edge trigger
+    // Set interrupt priority 
+    // NVIC priority interrupts so that clocks are synced & ensures NVIC detects interrupt
+    __NVIC_SetPriority(TIM2_IRQn, 1);     // Clock top priority
+    __NVIC_SetPriority(EXTI9_5_IRQn, 2);
+
+    // We do on all edges for more accurate timing 
+    // Configure interrupt for falling edge of GPIO pin for PA8
+    EXTI->IMR1 |= (1 << gpioPinOffset(ENCODE_A_PIN));   // 1. Configure mask bit
+    EXTI->RTSR1 |= ~(1 << gpioPinOffset(ENCODE_A_PIN)); // 2. Enable rising edge trigger
+    EXTI->FTSR1 |= (1 << gpioPinOffset(ENCODE_A_PIN));  // 3. Enable falling edge trigger
+
+        // Configure interrupt for falling edge of GPIO pin for PA9
+    EXTI->IMR1 |= (1 << gpioPinOffset(ENCODE_B_PIN));   // 1. Configure mask bit
+    EXTI->RTSR1 |= ~(1 << gpioPinOffset(ENCODE_B_PIN)); // 2. Enable rising edge trigger
+    EXTI->FTSR1 |= (1 << gpioPinOffset(ENCODE_B_PIN));  // 3. Enable falling edge trigger
+
     NVIC->ISER[0] |= (1 << 23);                       // 4. Turn on EXTI interrupt in NVIC_ISER (EXTI9_5 is IRQ 23)
 
     while(1){
-        delay_millis(DELAY_TIM, 200);
+        // Find speed in rev/s
+        // 4 edges per period so divide by 4
+        velocity = ((float)pulse/4.0f) / 408.0f;
+
+        // check the velocity and direction each second
+        if(TIMER->CNT == 10000) {
+          printf("Speed (rev/s): %f ", velocity);
+          printf("Direction: %d ", direction);
+
+          // Reset count and timer and pulse
+          pulse = 0;
+          TIMER->SR &= ~(1<<0);
+          TIMER->CNT = 0;
+        }
     }
 
 }
 
 // EXTI lines 5-9 share this handler
 void EXTI9_5_IRQHandler(void){
-    // Check that the button was what triggered our interrupt
-    if (EXTI->PR1 & (1 << gpioPinOffset(BUTTON_PIN))){
+    // Read the values of encoder signals to find direction
+    pulse_a = digitalRead(ENCODE_A_PIN);
+    pulse_b = digitalRead(ENCODE_B_PIN);
+
+    // Check that the A_sesnor was what triggered our interrupt
+    if (EXTI->PR1 & (1 << gpioPinOffset(ENCODE_A_PIN))){
         // If so, clear the interrupt (NB: Write 1 to reset.)
-        EXTI->PR1 = (1 << gpioPinOffset(BUTTON_PIN));
+        EXTI->PR1 = (1 << gpioPinOffset(ENCODE_A_PIN));
 
-        // Then toggle the LED
-        togglePin(LED_PIN);
+        // Check direction of the motor - if it is CW A rises first and vice versa
+        // if on the rising edge of A
+        if (pulse_a == 1) {
+          // b follows
+          if (pulse_b == 0) {
+            direction = CW;
+          }
+          // b leading
+          else {
+            direction = CCW;
+          }
+        }
+        else{
+          // b leading
+          if (pulse_b == 0) {
+            direction = CCW;
+          }
+          // b following
+          else {
+            direction = CW;
+          }
+        }
 
+        // Increment count of rising edge
+        pulse++;
+
+    }
+
+    // Check that the B_sensor was what triggered our interrupt
+    if (EXTI->PR1 & (1 << gpioPinOffset(ENCODE_B_PIN))){
+        // If so, clear the interrupt (NB: Write 1 to reset.)
+        EXTI->PR1 = (1 << gpioPinOffset(ENCODE_B_PIN));
+
+        // Check direction of the motor - if it is CW A rises first and vice versa
+        // if on the rising edge of B
+        if (pulse_b == 1) {
+          // a follows
+          if (pulse_a == 0) {
+            direction = CW;
+          }
+          // a leading
+          else {
+            direction = CCW;
+          }
+        }
+        else{
+          // a leading
+          if (pulse_a == 0) {
+            direction = CCW;
+          }
+          // a following
+          else {
+            direction = CW;
+          }
+        }
+        // Increment count of rising edge
+        pulse++;
+        
     }
 }
