@@ -13,8 +13,8 @@
 // Custom defines
 ///////////////////////////////////////////////////////////////////////////////
 
-#define ENCODE_A_PIN PA6
-#define ENCODE_B_PIN PA8
+#define ENCODE_A_PIN PA8
+#define ENCODE_B_PIN PA9
 #define TIMER TIM2
 #define CW 0
 #define CCW 1
