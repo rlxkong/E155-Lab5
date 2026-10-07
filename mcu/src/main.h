@@ -1,0 +1,20 @@
+// main.h
+// Rebecca Kong
+// rkong@hmc.edu
+// 10/6/26
+
+#ifndef MAIN_H
+#define MAIN_H
+
+#include "STM32L432KC.h"
+#include <stm32l432xx.h>
+
+///////////////////////////////////////////////////////////////////////////////
+// Custom defines
+///////////////////////////////////////////////////////////////////////////////
+
+#define ENCODE_A_PIN PA6
+#define ENCODE_B_PIN PA8
+#define TIMER TIM2
+
+#endif // MAIN_H
