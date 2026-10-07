@@ -100,7 +100,7 @@ void EXTI9_5_IRQHandler(void){
     pulse_a = digitalRead(ENCODE_A_PIN);
     pulse_b = digitalRead(ENCODE_B_PIN);
 
-    // Check that the A_sesnor was what triggered our interrupt
+    // Check that the A_sensor was what triggered our interrupt
     if (EXTI->PR1 & (1 << gpioPinOffset(ENCODE_A_PIN))){
         // If so, clear the interrupt (NB: Write 1 to reset.)
         EXTI->PR1 = (1 << gpioPinOffset(ENCODE_A_PIN));
@@ -162,6 +162,6 @@ void EXTI9_5_IRQHandler(void){
         }
         // Increment count of rising edge
         pulse++;
-        
+
     }
 }
